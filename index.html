@@ -7,78 +7,96 @@
 
 <style>
 body {
-    background:#0b0b0b;
-    color:#f2f2f2;
-    font-family: monospace;
-    margin:0;
+ background:#0b0b0b;
+ color:#f2f2f2;
+ font-family: monospace;
+ margin:0;
 }
 
 #game {
-    max-width:420px;
-    margin:auto;
-    padding:10px;
+ max-width:420px;
+ margin:auto;
+ padding:10px;
 }
 
 h1 { text-align:center; }
 
 .panel {
-    border:3px solid #444;
-    background:#141414;
-    padding:8px;
-    margin-bottom:8px;
+ border:3px solid #444;
+ background:#141414;
+ padding:8px;
+ margin-bottom:8px;
+ position:relative;
 }
 
 button, select {
-    width:100%;
-    margin-top:6px;
-    padding:10px;
-    font-size:16px;
-    background:#2b2b2b;
-    color:white;
-    border:2px solid #555;
+ width:100%;
+ margin-top:6px;
+ padding:10px;
+ font-size:16px;
+ background:#2b2b2b;
+ color:white;
+ border:2px solid #555;
 }
 
 .bar {
-    height:16px;
-    background:#222;
-    border:2px solid #444;
-    margin-top:4px;
-    position:relative;
+ height:16px;
+ background:#222;
+ border:2px solid #444;
+ margin-top:4px;
+ position:relative;
+ overflow:hidden;
 }
 
-.fill {
-    height:100%;
-    width:0%;
-}
+.fill { height:100%; width:0%; }
 
-.heat { background:#ff7b00; }
+.heat { background:#ff7b00; box-shadow:0 0 6px #ff7b00; }
 .shape { background:#4cff4c; }
 
 .optimal {
-    position:absolute;
-    top:0;
-    height:100%;
-    background:rgba(0,255,0,0.25);
+ position:absolute;
+ top:0;
+ height:100%;
+ background:rgba(0,255,0,0.25);
 }
 
 .marker {
-    position:absolute;
-    width:4px;
-    height:100%;
-    background:#fff;
+ position:absolute;
+ width:4px;
+ height:100%;
+ background:#fff;
 }
 
 .pixel {
-    width:16px;
-    height:16px;
-    background:#888;
-    display:inline-block;
-    margin-right:4px;
+ width:8px;
+ height:8px;
+ background:#ccc;
+ position:absolute;
+ animation:steam 0.8s linear forwards;
 }
 
-.locked {
-    color:#777;
+@keyframes steam {
+ from { opacity:1; transform:translateY(0); }
+ to { opacity:0; transform:translateY(-30px); }
 }
+
+.shake {
+ animation:shake 0.1s;
+}
+
+@keyframes shake {
+ 0% { transform:translateX(-2px); }
+ 50% { transform:translateX(2px); }
+ 100% { transform:translateX(0); }
+}
+
+.skill {
+ border:1px solid #555;
+ padding:6px;
+ margin-top:6px;
+}
+
+.locked { opacity:0.4; }
 </style>
 </head>
 
@@ -88,9 +106,14 @@ button, select {
 <h1>PIXEL FORGE</h1>
 
 <div class="panel">
-<b>Location</b>
+<b>Gold:</b> <span id="gold">0</span> |
+<b>Skill Points:</b> <span id="sp">0</span>
+</div>
+
+<div class="panel">
+<b>Gather</b>
 <select id="location"></select>
-<button onclick="gather()">Gather</button>
+<button onclick="gather()">Gather Ore</button>
 <div id="gatherResult"></div>
 </div>
 
@@ -100,38 +123,38 @@ button, select {
 </div>
 
 <div class="panel">
-<b>Forge Setup</b>
+<b>Forge</b>
 <select id="materialA"></select>
 <select id="materialB"></select>
-</div>
 
-<div class="panel">
-<b>Heat</b>
 <div class="bar">
-    <div class="optimal" id="heatOptimal"></div>
-    <div class="fill heat" id="heatBar"></div>
+ <div class="optimal" id="heatOptimal"></div>
+ <div class="fill heat" id="heatBar"></div>
 </div>
 <button onclick="addHeat()">Stoke Fire</button>
-</div>
 
-<div class="panel">
-<b>Hammer Timing</b>
 <div class="bar">
-    <div class="optimal" id="hitZone"></div>
-    <div class="marker" id="cursor"></div>
+ <div class="optimal" id="hitZone"></div>
+ <div class="marker" id="cursor"></div>
 </div>
-<button onclick="hammer()">Strike</button>
-</div>
+<button onclick="hammer()">Hammer</button>
 
-<div class="panel">
-<b>Shape Progress</b>
 <div class="bar">
-    <div class="fill shape" id="shapeBar"></div>
+ <div class="fill shape" id="shapeBar"></div>
 </div>
+
+<button onclick="quench()">Quench</button>
 </div>
 
 <div class="panel">
-<button onclick="quench()">Quench & Finish</button>
+<b>Market</b>
+<button onclick="sell()">Sell Forged Item</button>
+<div id="marketResult"></div>
+</div>
+
+<div class="panel">
+<b>Skill Tree</b>
+<div id="skills"></div>
 </div>
 
 <div class="panel">
@@ -141,81 +164,92 @@ button, select {
 
 </div>
 
-<audio id="fire" loop src="https://cdn.pixabay.com/audio/2022/03/15/audio_8d1f7ffb9c.mp3"></audio>
-<audio id="hammerSnd" src="https://cdn.pixabay.com/audio/2022/03/15/audio_7e6b8f1b62.mp3"></audio>
-<audio id="quenchSnd" src="https://cdn.pixabay.com/audio/2022/03/15/audio_16c7eec89f.mp3"></audio>
-
 <script>
+/* DATA */
 const materials = {
- Iron:{min:45,max:65,diff:1},
- Steel:{min:55,max:75,diff:1.3},
- Silver:{min:35,max:55,diff:0.8},
- Gold:{min:30,max:45,diff:0.6},
- Obsidian:{min:60,max:70,diff:1.6},
- Mythril:{min:65,max:85,diff:1.9},
- Adamantite:{min:70,max:90,diff:2.3}
+ Iron:{min:45,max:65,diff:1,price:20},
+ Steel:{min:55,max:75,diff:1.3,price:40},
+ Obsidian:{min:60,max:70,diff:1.6,price:60},
+ Mythril:{min:65,max:85,diff:1.9,price:90}
 };
 
 const locations = {
- Riverbank:{ores:["Silver"],unlock:0},
- Hills:{ores:["Iron"],unlock:0},
- Mountains:{ores:["Steel"],unlock:3},
- Volcano:{ores:["Obsidian"],unlock:6},
- "Deep Cavern":{ores:["Mythril"],unlock:10},
- "Ancient Forge":{ores:["Adamantite"],unlock:15}
+ Hills:["Iron"],
+ Mountains:["Steel"],
+ Volcano:["Obsidian"],
+ Cavern:["Mythril"]
 };
 
-let inventory = { Iron:2 };
-let heat = 0;
-let shape = 0;
-let forged = 0;
-let cursor = 0;
-let dir = 1;
+let state = JSON.parse(localStorage.getItem("forgeSave")) || {
+ inventory:{Iron:2},
+ gold:0,
+ sp:0,
+ forged:false,
+ heat:0,
+ shape:0,
+ skills:{
+  heat:0,
+  precision:0,
+  efficiency:0,
+  merchant:0
+ }
+};
 
-fire.volume = 0.4;
-fire.play();
+let cursor=0,dir=1;
 
+/* INIT */
 function init(){
- updateLocations();
- updateInventory();
- setInterval(()=>{
-  heat = Math.max(0, heat-0.15);
-  heatBar.style.width = heat+"%";
-  cursor += dir*2;
-  if(cursor>100||cursor<0) dir*=-1;
-  document.getElementById("cursor").style.left = cursor+"%";
- },50);
+ updateUI();
+ setInterval(tick,50);
 }
 init();
 
-function updateLocations(){
+/* LOOP */
+function tick(){
+ state.heat=Math.max(0,state.heat-(0.15-(state.skills.heat*0.03)));
+ heatBar.style.width=state.heat+"%";
+ cursor+=dir*(2+state.skills.precision);
+ if(cursor>100||cursor<0) dir*=-1;
+ cursorEl.style.left=cursor+"%";
+ save();
+}
+
+/* UI */
+function updateUI(){
+ gold.innerText=state.gold;
+ sp.innerText=state.sp;
+ inventoryDiv.innerHTML="";
+ for(let m in state.inventory)
+  inventoryDiv.innerHTML+=`${m}: ${state.inventory[m]}<br>`;
+ [materialA,materialB].forEach(s=>{
+  s.innerHTML="<option value=''>None</option>";
+  for(let m in state.inventory) s.innerHTML+=`<option>${m}</option>`;
+ });
  location.innerHTML="";
- for(let l in locations){
-  if(forged>=locations[l].unlock)
-   location.innerHTML+=`<option>${l}</option>`;
-  else
-   location.innerHTML+=`<option disabled class="locked">${l} (Locked)</option>`;
+ for(let l in locations) location.innerHTML+=`<option>${l}</option>`;
+ renderSkills();
+}
+
+function renderSkills(){
+ skills.innerHTML="";
+ for(let k in state.skills){
+  let cost=state.skills[k]+1;
+  skills.innerHTML+=`
+   <div class="skill">
+    ${k.toUpperCase()} Lv ${state.skills[k]}
+    <button onclick="buySkill('${k}')" ${state.sp<cost?"disabled":""}>
+     Upgrade (${cost})
+    </button>
+   </div>`;
  }
 }
 
-function updateInventory(){
- inventoryDiv.innerHTML="";
- for(let m in inventory)
-  inventoryDiv.innerHTML+=`<div class="pixel"></div>${m}: ${inventory[m]}<br>`;
-
- [materialA,materialB].forEach(s=>{
-  s.innerHTML="<option value=''>None</option>";
-  for(let m in inventory)
-   s.innerHTML+=`<option>${m}</option>`;
- });
-}
-
+/* GAMEPLAY */
 function gather(){
- let pool = locations[location.value].ores;
- let ore = pool[Math.floor(Math.random()*pool.length)];
- inventory[ore]=(inventory[ore]||0)+1;
+ let ore=locations[location.value][0];
+ state.inventory[ore]=(state.inventory[ore]||0)+1;
  gatherResult.innerText="Found "+ore;
- updateInventory();
+ updateUI();
 }
 
 function stats(){
@@ -227,47 +261,88 @@ function stats(){
   s.diff+=materials[m].diff;
  });
  s.min/=mats.length; s.max/=mats.length; s.diff/=mats.length;
+ s.min-=state.skills.heat*2;
+ s.max+=state.skills.heat*2;
  heatOptimal.style.left=s.min+"%";
  heatOptimal.style.width=(s.max-s.min)+"%";
- hitZone.style.left="45%";
- hitZone.style.width="10%";
+ hitZone.style.left=(45-state.skills.precision*2)+"%";
+ hitZone.style.width=(10+state.skills.precision*4)+"%";
  return s;
 }
 
 function addHeat(){
- heat=Math.min(100,heat+8);
- heatBar.style.width=heat+"%";
+ state.heat=Math.min(100,state.heat+8);
+ heatBar.style.width=state.heat+"%";
  stats();
 }
 
 function hammer(){
- hammerSnd.play();
+ game.classList.add("shake");
+ setTimeout(()=>game.classList.remove("shake"),100);
  let s=stats();
  let hit=Math.abs(cursor-50);
- if(hit<5 && heat>=s.min && heat<=s.max){
-  shape+=10/s.diff;
- } else if(hit<12){
-  shape+=4/s.diff;
- } else {
-  shape-=6;
- }
- shape=Math.max(0,Math.min(100,shape));
- shapeBar.style.width=shape+"%";
+ if(hit<5 && state.heat>=s.min && state.heat<=s.max)
+  state.shape+=10/s.diff;
+ else if(hit<12)
+  state.shape+=4/s.diff;
+ else state.shape-=6;
+ state.shape=Math.max(0,Math.min(100,state.shape));
+ shapeBar.style.width=state.shape+"%";
 }
 
 function quench(){
- quenchSnd.play();
- if(shape>=100){
-  result.innerText="Forged successfully!";
-  forged++;
-  updateLocations();
- } else result.innerText="Ruined item.";
- [materialA.value,materialB.value].forEach(m=>{
-  if(m){ inventory[m]--; if(inventory[m]<=0) delete inventory[m]; }
- });
- heat=shape=0;
+ if(state.shape>=100){
+  result.innerText="Item Forged!";
+  state.forged=true;
+  state.sp++;
+  steam();
+  [materialA.value,materialB.value].forEach(m=>{
+   if(m && Math.random()>state.skills.efficiency*0.2){
+    state.inventory[m]--;
+    if(state.inventory[m]<=0) delete state.inventory[m];
+   }
+  });
+ } else result.innerText="Failed Forge";
+ state.heat=state.shape=0;
  heatBar.style.width=shapeBar.style.width="0%";
- updateInventory();
+ updateUI();
+}
+
+function sell(){
+ if(!state.forged){ marketResult.innerText="Nothing to sell"; return; }
+ let value=0;
+ [materialA.value,materialB.value].forEach(m=>{
+  if(m) value+=materials[m].price;
+ });
+ value*=1+(state.skills.merchant*0.15);
+ state.gold+=Math.floor(value);
+ state.forged=false;
+ marketResult.innerText="Sold for "+Math.floor(value)+" gold";
+ updateUI();
+}
+
+function buySkill(k){
+ let cost=state.skills[k]+1;
+ if(state.sp>=cost){
+  state.sp-=cost;
+  state.skills[k]++;
+  updateUI();
+ }
+}
+
+function steam(){
+ for(let i=0;i<10;i++){
+  let p=document.createElement("div");
+  p.className="pixel";
+  p.style.left=Math.random()*400+"px";
+  p.style.top="200px";
+  document.body.appendChild(p);
+  setTimeout(()=>p.remove(),800);
+ }
+}
+
+function save(){
+ localStorage.setItem("forgeSave",JSON.stringify(state));
 }
 </script>
 </body>
