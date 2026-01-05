@@ -26,7 +26,6 @@ h1 { text-align:center; }
  background:#141414;
  padding:8px;
  margin-bottom:8px;
- position:relative;
 }
 
 button, select {
@@ -45,12 +44,10 @@ button, select {
  border:2px solid #444;
  margin-top:4px;
  position:relative;
- overflow:hidden;
 }
 
 .fill { height:100%; width:0%; }
-
-.heat { background:#ff7b00; box-shadow:0 0 6px #ff7b00; }
+.heat { background:#ff7b00; }
 .shape { background:#4cff4c; }
 
 .optimal {
@@ -95,7 +92,7 @@ button, select {
 
 <div class="panel">
 <b>Gather</b>
-<select id="location"></select>
+<select id="locationSelect"></select>
 <button onclick="gather()">Gather Ore</button>
 <div id="gatherResult"></div>
 </div>
@@ -174,18 +171,21 @@ let state = JSON.parse(localStorage.getItem("pixelForgeSave")) || {
  skills:{ heat:0, precision:0, efficiency:0, merchant:0 }
 };
 
-let cursorPos = 0;
-let cursorDir = 1;
+/* ---------- DOM ---------- */
 
-/* ---------- INIT ---------- */
-
+const locationSelect = document.getElementById("locationSelect");
 const inventoryDiv = document.getElementById("inventory");
 const cursorEl = document.getElementById("cursor");
 const game = document.getElementById("game");
 
+/* ---------- INIT ---------- */
+
+let cursorPos = 0;
+let cursorDir = 1;
+
 function init(){
  for(let l in locations){
-  document.getElementById("location").innerHTML += `<option>${l}</option>`;
+  locationSelect.innerHTML += `<option value="${l}">${l}</option>`;
  }
  updateUI();
  setInterval(tick,50);
@@ -219,19 +219,22 @@ function updateUI(){
  [materialA, materialB].forEach(sel=>{
   sel.innerHTML = "<option value=''>None</option>";
   for(let m in state.inventory){
-   sel.innerHTML += `<option>${m}</option>`;
+   sel.innerHTML += `<option value="${m}">${m}</option>`;
   }
  });
 
  forgedItem.innerText = state.forgedItem ? state.forgedItem.name : "None";
-
  renderSkills();
 }
 
 /* ---------- GATHER ---------- */
 
 function gather(){
- const loc = location.value;
+ const loc = locationSelect.value;
+ if(!loc){
+  gatherResult.innerText = "No location selected";
+  return;
+ }
  const ore = locations[loc][0];
  state.inventory[ore] = (state.inventory[ore] || 0) + 1;
  gatherResult.innerText = "Collected " + ore;
